@@ -236,7 +236,7 @@ function StatusContent() {
 
                 <div className="flex justify-between items-start gap-4 border-b border-white/5 pb-8">
                     <div className="space-y-2">
-                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Official Designation</p>
+                        <p className="text-[9px] font-black text-blue-500 uppercase tracking-[0.4em]">Assigned Section</p>
                         <h3 className="text-3xl font-black text-white leading-none uppercase tracking-tighter italic">
                             {result.last_name},<br />
                             <span className="text-blue-100">{result.first_name} {result.middle_name}</span>
@@ -247,11 +247,11 @@ function StatusContent() {
 
                 <div className="grid grid-cols-2 gap-6">
                     <div>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.3em]">Matrix Strand</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.3em]">Strand</p>
                         <p className="text-sm font-black text-white uppercase">{result.strand}</p>
                     </div>
                     <div>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.3em]">Tracking ID</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.3em]">LRN Tracking ID</p>
                         <p className="text-sm font-mono font-bold text-blue-400">{result.lrn}</p>
                     </div>
                 </div>
@@ -262,14 +262,14 @@ function StatusContent() {
                     <div className="p-6 bg-red-900/20 rounded-[32px] border border-red-500/20 space-y-3">
                         <div className="flex items-center gap-2 text-red-400">
                             <AlertCircle size={14} />
-                            <p className="text-[10px] font-black uppercase tracking-widest">Correction Directive</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest">Admission Office Feedback</p>
                         </div>
                         <p className="text-sm font-bold text-red-200 leading-relaxed italic">
                             "{result.registrar_feedback || "Correction needed. Please re-verify your requirements."}"
                         </p>
                     </div>
                     <Button onClick={handleFixApplication} className="w-full h-16 bg-white text-slate-950 hover:bg-blue-600 hover:text-white rounded-[24px] font-black uppercase text-[11px] tracking-[0.3em] shadow-xl flex items-center justify-center gap-3 transition-all">
-                        <FileEdit size={18} /> Initialize Repair
+                        <FileEdit size={18} /> Edit Enrollment Form
                     </Button>
                     </div>
                 )}
@@ -297,9 +297,9 @@ function StatusContent() {
                         <Orbit size={100} className="absolute text-blue-500/10 animate-spin-slow" />
                     </div>
                     <div className="space-y-2">
-                        <p className="text-lg font-black text-white uppercase tracking-tighter italic">Validation Sequence Active</p>
+                        <p className="text-lg font-black text-white uppercase tracking-tighter italic">Pending</p>
                         <p className="text-[11px] font-medium text-slate-500 italic max-w-[240px] leading-relaxed uppercase tracking-widest">
-                            Intelligence is validating your assets. Synchronization will update in 48 Earth hours.
+                            Admission Officer is validating your assets. Synchronization will update once it's been verified.
                         </p>
                     </div>
                     </div>
