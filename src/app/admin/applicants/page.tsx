@@ -40,14 +40,12 @@ export default function ApplicantsPage() {
  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
  const processingIdsRef = useRef<Set<string>>(new Set())
 
- // ⚡ REAL-TIME ANIMATION TRACKING
+ // 🔥 NUCLEAR FIX: Per-tab snapshots to track witnessed arrivals
  const [animatingIds, setAnimatingIds] = useState<Set<string>>(new Set())
- const prevFilteredIdsRef = useRef<Set<string>>(new Set())
+ const tabSnapshotsRef = useRef<Map<string, Set<string>>>(new Map())
  const prevFilterRef = useRef(filter)
  const isInitialMountRef = useRef(true)
- const userSwitchedTabRef = useRef(false)
- const isBulkOperationRef = useRef(false)
- const lastBulkIdsRef = useRef<string[]>([])
+ const activeTabRef = useRef(filter)
 
  useEffect(() => {
    processingIdsRef.current = processingIds
@@ -88,80 +86,94 @@ export default function ApplicantsPage() {
   })
  }, [students, filter, searchTerm, sortBy])
 
- // ⚡ ENHANCED: Smart entry animations for witnessed arrivals
+ // 🎯 WITNESSED ARRIVALS: Only animate students who arrive while actively viewing the tab
  useEffect(() => {
-   const currentIds = new Set(filteredStudents.map(s => s.id))
-   
-   // Detect manual tab switch
-   if (filter !== prevFilterRef.current) {
-     userSwitchedTabRef.current = true
-     prevFilterRef.current = filter
-     prevFilteredIdsRef.current = currentIds
-     isBulkOperationRef.current = false
-     return
-   }
-
    // Skip initial mount
    if (isInitialMountRef.current) {
      isInitialMountRef.current = false
-     prevFilteredIdsRef.current = currentIds
+     // Initialize snapshot for current tab
+     const initialIds = new Set(filteredStudents.map(s => s.id))
+     tabSnapshotsRef.current.set(filter, initialIds)
+     activeTabRef.current = filter
      return
    }
 
-   // Find NEW arrivals (students appearing while we're watching THIS tab)
-   const newIds = filteredStudents
-     .filter(s => !prevFilteredIdsRef.current.has(s.id))
-     .map(s => s.id)
-   
-   if (newIds.length > 0 && !userSwitchedTabRef.current) {
-     // Check if this was a bulk operation
-     const wasBulk = isBulkOperationRef.current && 
-                     lastBulkIdsRef.current.some(id => newIds.includes(id))
+   // 🔥 USER SWITCHED TABS (Manual navigation)
+   if (filter !== prevFilterRef.current) {
+     console.log('🔄 Tab Switch:', prevFilterRef.current, '→', filter)
      
-     setAnimatingIds(prev => {
-       const next = new Set(prev)
-       newIds.forEach(id => next.add(id))
+     // Save snapshot of OLD tab before leaving
+     const oldTabStudents = students.filter(s => {
+       const matchesStatus = s.status === prevFilterRef.current || 
+                            (prevFilterRef.current === 'Accepted' && s.status === 'Approved')
+       const matchesSearch = `${s.first_name} ${s.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            s.lrn.includes(searchTerm)
+       return matchesStatus && matchesSearch
+     })
+     const oldTabIds = new Set(oldTabStudents.map(s => s.id))
+     tabSnapshotsRef.current.set(prevFilterRef.current, oldTabIds)
+     
+     // Clear hidden/exiting rows when switching (keep processing ones)
+     const currentProcessing = processingIdsRef.current
+     setHiddenRows(prev => {
+       const next = new Set<string>()
+       prev.forEach(id => { if (currentProcessing.has(id)) next.add(id) })
+       return next
+     })
+     setExitingRows(prev => {
+       const next: Record<string, boolean> = {}
+       Object.keys(prev).forEach(id => { if (currentProcessing.has(id)) next[id] = true })
        return next
      })
      
-     // ✨ SYMMETRICAL BULK ANIMATION: All students animate together
-     const animationDuration = wasBulk ? 600 : 500
+     // Update refs
+     prevFilterRef.current = filter
+     activeTabRef.current = filter
      
+     // Initialize snapshot for NEW tab if not exists
+     if (!tabSnapshotsRef.current.has(filter)) {
+       const newTabIds = new Set(filteredStudents.map(s => s.id))
+       tabSnapshotsRef.current.set(filter, newTabIds)
+     }
+     
+     return // Don't animate on manual tab switch
+   }
+
+   // 🎯 DATA CHANGED WHILE ON CURRENT TAB (Witnessed arrivals)
+   const snapshot = tabSnapshotsRef.current.get(filter) || new Set()
+   const currentIds = new Set(filteredStudents.map(s => s.id))
+   
+   // Find NEW students who weren't in snapshot (witnessed arrivals)
+   const newArrivals = filteredStudents
+     .filter(s => !snapshot.has(s.id) && !processingIds.has(s.id))
+     .map(s => s.id)
+
+   if (newArrivals.length > 0) {
+     console.log('🔥 WITNESSED ARRIVALS on', filter, ':', newArrivals)
+     
+     setAnimatingIds(prev => {
+       const next = new Set(prev)
+       newArrivals.forEach(id => next.add(id))
+       return next
+     })
+     
+     // Clear animation after duration
+     const duration = newArrivals.length > 1 ? 600 : 500
      setTimeout(() => {
        setAnimatingIds(prev => {
          const next = new Set(prev)
-         newIds.forEach(id => next.delete(id))
+         newArrivals.forEach(id => next.delete(id))
          return next
        })
-       
-       // Clear bulk flag after animation
-       if (wasBulk) {
-         isBulkOperationRef.current = false
-         lastBulkIdsRef.current = []
-       }
-     }, animationDuration)
+     }, duration)
    }
 
-   userSwitchedTabRef.current = false
-   prevFilteredIdsRef.current = currentIds
- }, [filteredStudents, filter])
+   // 🎯 UPDATE SNAPSHOT with current visible students
+   tabSnapshotsRef.current.set(filter, currentIds)
 
- // Clear hidden rows when switching filters
- useEffect(() => {
-  const currentProcessing = processingIdsRef.current
-  setHiddenRows(prev => {
-    const next = new Set<string>()
-    prev.forEach(id => { if (currentProcessing.has(id)) next.add(id) })
-    return next
-  })
-  setExitingRows(prev => {
-    const next: Record<string, boolean> = {}
-    Object.keys(prev).forEach(id => { if (currentProcessing.has(id)) next[id] = true })
-    return next
-  })
- }, [filter])
+ }, [filteredStudents, filter, students, searchTerm, processingIds])
 
- // Re-show students if they reappear
+ // Re-show students if they reappear (cleanup after processing)
  useEffect(() => {
   setHiddenRows(prev => {
     if (prev.size === 0) return prev
@@ -194,7 +206,7 @@ export default function ApplicantsPage() {
   setTimeout(() => {
     setHiddenRows(prev => { const next = new Set(prev); next.add(id); return next })
     callback()
-  }, 200)
+  }, 300)
  }, [])
 
  // --- MODAL STATES ---
@@ -208,7 +220,6 @@ export default function ApplicantsPage() {
  const [activeDeleteStudent, setActiveDeleteStudent] = useState<any>(null)
  const [openStudentDialog, setOpenStudentDialog] = useState<string | null>(null)
 
- // ⚡ OPTIMIZED: Parallel strand stats fetch
  const fetchStrandStats = useCallback(async () => {
   const { data: sections } = await supabase
     .from('sections')
@@ -230,11 +241,9 @@ export default function ApplicantsPage() {
   }
  }, [])
 
- // ⚡ BLAZING FAST: Optimized fetch with minimal queries
  const fetchStudents = useCallback(async (isBackground = false) => {
   if (!isBackground) setLoading(true)
   try {
-   // ONE parallel query for everything
    const [studentsRes, configRes] = await Promise.all([
     supabase
       .from('students')
@@ -245,7 +254,6 @@ export default function ApplicantsPage() {
 
    if (studentsRes.error) throw studentsRes.error
    
-   // ⚡ INSTANT STATE UPDATE
    setStudents(studentsRes.data || [])
    if (configRes.data) setConfig(configRes.data)
    
@@ -258,7 +266,6 @@ export default function ApplicantsPage() {
   }
  }, [fetchStrandStats])
 
- // ⚡ OPTIMIZED: Debounced realtime updates
  useEffect(() => {
   fetchStudents()
 
@@ -271,7 +278,7 @@ export default function ApplicantsPage() {
       debounceTimer = setTimeout(() => {
         fetchStrandStats()
         fetchStudents(true)
-      }, 100) // Debounce rapid changes
+      }, 100)
     })
     .on('broadcast', { event: 'student_update' }, () => {
       clearTimeout(debounceTimer)
@@ -292,19 +299,16 @@ export default function ApplicantsPage() {
   }
  }, [fetchStudents, fetchStrandStats])
 
- // ⚡ OPTIMIZED: Single student status change
  const handleStatusChange = useCallback(async (studentId: string, name: string, status: any, feedback?: string) => {
   setProcessingIds(prev => { const next = new Set(prev); next.add(studentId); return next })
   const toastId = toast.loading(`⚡ Processing ${name}...`)
   
   try {
-   // Smooth exit animation
    setExitingRows(prev => ({ ...prev, [studentId]: true }))
-   await new Promise(resolve => setTimeout(resolve, 180))
+   await new Promise(resolve => setTimeout(resolve, 280))
    
    setHiddenRows(prev => { const next = new Set(prev); next.add(studentId); return next })
    
-   // Backend update
    const result = await updateApplicantStatus(studentId, status, feedback);
    
    if (result.success) {
@@ -335,7 +339,6 @@ export default function ApplicantsPage() {
       
     toast.success(successMsg, { id: toastId })
     
-    // Update state (triggers entrance animation if viewing target tab)
     setStudents(prev => prev.map(s => s.id === studentId ? { 
         ...s, 
         status: status, 
@@ -356,7 +359,6 @@ export default function ApplicantsPage() {
   }
  }, [students])
 
- // ⚡ OPTIMIZED: Delete student
  const handleConfirmDelete = useCallback(async () => {
   if (!activeDeleteStudent) return;
   const studentId = activeDeleteStudent.id;
@@ -366,7 +368,7 @@ export default function ApplicantsPage() {
   
   try {
    setExitingRows(prev => ({ ...prev, [studentId]: true }))
-   await new Promise(resolve => setTimeout(resolve, 180))
+   await new Promise(resolve => setTimeout(resolve, 280))
    
    setHiddenRows(prev => { const next = new Set(prev); next.add(studentId); return next })
    
@@ -397,13 +399,8 @@ export default function ApplicantsPage() {
   }
  }, [activeDeleteStudent, students])
 
- // ⚡ BLAZING FAST: True batch update in ONE transaction
  const processBulkUpdate = useCallback(async (newStatus: string, feedback?: string) => {
   const count = selectedIds.length
-  
-  // Mark as bulk operation for symmetrical animations
-  isBulkOperationRef.current = true
-  lastBulkIdsRef.current = [...selectedIds]
   
   setProcessingIds(prev => {
     const next = new Set(prev)
@@ -414,14 +411,13 @@ export default function ApplicantsPage() {
   const toastId = toast.loading(`⚡ Processing ${count} students...`)
   
   try {
-   // Simultaneous exit animations
    setExitingRows(prev => {
      const next = { ...prev }
      selectedIds.forEach(id => { next[id] = true })
      return next
    })
    
-   await new Promise(resolve => setTimeout(resolve, 180))
+   await new Promise(resolve => setTimeout(resolve, 280))
 
    setHiddenRows(prev => {
      const next = new Set(prev)
@@ -431,7 +427,6 @@ export default function ApplicantsPage() {
 
    const targetStatus = newStatus === 'Accepted' ? 'Approved' : newStatus
    
-   // 🚀 ONE SERVER CALL - ULTRA FAST
    const result = await bulkUpdateApplicantStatus(selectedIds, targetStatus, feedback);
 
    if (result.success) {
@@ -450,7 +445,6 @@ export default function ApplicantsPage() {
 
      await supabase.from('activity_logs').insert(logEntries);
 
-     // Update state (will trigger symmetrical entrance animations)
      const successfulUpdates = result.results.filter(r => r.success);
      setStudents(prev => prev.map(s => {
        const update = successfulUpdates.find(u => u.id === s.id);
@@ -474,8 +468,6 @@ export default function ApplicantsPage() {
    toast.error("❌ Bulk action failed", { id: toastId })
    setExitingRows(prev => { const next = { ...prev }; selectedIds.forEach(id => delete next[id]); return next })
    setHiddenRows(prev => { const next = new Set(prev); selectedIds.forEach(id => next.delete(id)); return next })
-   isBulkOperationRef.current = false
-   lastBulkIdsRef.current = []
   } finally {
    setSelectedIds([])
    setExitingRows(prev => {
@@ -496,7 +488,6 @@ export default function ApplicantsPage() {
   }
  }, [selectedIds, students])
 
- // ⚡ BLAZING FAST: True batch delete
  const processBulkDelete = useCallback(async () => {
   const count = selectedIds.length
   setProcessingIds(prev => {
@@ -514,7 +505,7 @@ export default function ApplicantsPage() {
      return next
    })
    
-   await new Promise(resolve => setTimeout(resolve, 180))
+   await new Promise(resolve => setTimeout(resolve, 280))
 
    setHiddenRows(prev => {
      const next = new Set(prev)
@@ -533,7 +524,6 @@ export default function ApplicantsPage() {
      details: "Batch deletion from database"
    }));
 
-   // 🚀 ONE SERVER CALL
    await Promise.all([
      bulkDeleteApplicants(selectedIds),
      supabase.from('activity_logs').insert(logEntries)

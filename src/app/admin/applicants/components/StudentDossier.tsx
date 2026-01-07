@@ -25,7 +25,7 @@ export const StudentDossier = memo(({ student, onOpenFile, isDarkMode }: { stude
     </div>
     <div className="relative z-10 mb-6">
      <div className="w-32 h-32 md:w-44 md:h-44 bg-slate-800 rounded-3xl border-4 border-white/10 overflow-hidden shadow-2xl flex items-center justify-center cursor-zoom-in group hover:ring-2 hover:ring-blue-400/50 transition-all" onClick={() => onOpenFile(student.two_by_two_url || student.profile_2x2_url || student.profile_picture, "Applicant 2x2 Image")}>
-      {student.two_by_two_url || student.profile_2x2_url || student.profile_picture ? (<img src={student.two_by_two_url || student.profile_2x2_url || student.profile_picture} alt="2x2" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />) : (<div className="flex flex-col items-center text-slate-500"><User size={48} strokeWidth={1} /><p className="text-[8px] font-bold uppercase mt-2">No Photo Provided</p></div>)}
+      {student.two_by_two_url || student.profile_2x2_url || student.profile_picture ? (<img src={student.two_by_two_url || student.profile_2x2_url || student.profile_picture} alt="2x2" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="eager" decoding="async" />) : (<div className="flex flex-col items-center text-slate-500"><User size={48} strokeWidth={1} /><p className="text-[8px] font-bold uppercase mt-2">No Photo Provided</p></div>)}
      </div>
     </div>
     <h2 className="text-2xl md:text-3xl font-black text-white tracking-tighter uppercase leading-none">{student.first_name} {student.last_name}</h2>

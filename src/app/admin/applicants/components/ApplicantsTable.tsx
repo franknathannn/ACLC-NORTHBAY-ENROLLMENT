@@ -55,12 +55,15 @@ const MobileApplicantRow = memo(({
   
   return (
     <div 
-      className={`rounded-3xl p-5 border relative transition-all duration-300 ${
+      className={`rounded-3xl p-5 border relative transition-all ${
         isSelected 
           ? (isMale ? 'bg-blue-50/90 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800' : 'bg-pink-50/90 border-pink-200 dark:bg-pink-900/30 dark:border-pink-800')
           : (isDarkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-100')
-      } ${isExiting ? 'animate-out slide-out-to-right-10 fade-out duration-300' : ''} ${isAnimatingIn ? 'animate-in slide-in-from-right-8 fade-in duration-500 fill-mode-backwards' : ''}`}
+      } ${isExiting ? 'animate-[slideOutRight_0.3s_ease-in-out_forwards]' : ''} ${isAnimatingIn ? 'animate-[slideInRight_0.5s_ease-out_backwards]' : ''}`}
       onClick={() => setOpenStudentDialog(student.id)}
+      style={{
+        animationFillMode: isExiting ? 'forwards' : isAnimatingIn ? 'backwards' : 'none'
+      }}
     >
       <div className="flex items-start gap-4">
         <button onClick={(e) => { e.stopPropagation(); toggleSelect(student.id); }} className="mt-1">
@@ -154,7 +157,7 @@ const DesktopApplicantRow = memo(({
 
   return (
     <TableRow 
-      className={`transition-colors duration-300 border-b group relative ${baseBg} ${genderHoverBg} hover:shadow-sm will-change-transform ${isExiting ? 'animate-out slide-out-to-right-10 fade-out duration-300 pointer-events-none' : ''} ${isAnimatingIn ? 'animate-in slide-in-from-right-8 fade-in duration-500 fill-mode-backwards' : ''}`}
+      className={`transition-colors border-b group relative ${baseBg} ${genderHoverBg} hover:shadow-sm will-change-transform ${isExiting ? 'animate-[slideOutRight_0.3s_ease-in-out_forwards] pointer-events-none' : ''} ${isAnimatingIn ? 'animate-[slideInRight_0.5s_ease-out_backwards]' : ''}`}
       onMouseEnter={(e) => {
         if (isSelected) {
           e.currentTarget.style.backgroundColor = isMale ? 'rgb(219 234 254 / 0.8)' : 'rgb(252 231 243 / 0.8)'
@@ -173,7 +176,7 @@ const DesktopApplicantRow = memo(({
       style={{
         borderColor: isDarkMode ? 'rgba(77, 87, 100, 0.4)' : 'rgba(231, 229, 229, 0.53)',
         ...(isSelected ? { backgroundColor: isMale ? 'rgb(219 234 254 / 0.8)' : 'rgb(252 231 243 / 0.8)' } : undefined),
-        ...(isExiting ? { animationFillMode: 'forwards' } : undefined)
+        animationFillMode: isExiting ? 'forwards' : isAnimatingIn ? 'backwards' : 'none'
       }}
     >
       <TableCell className="pl-4 md:pl-8">
@@ -395,116 +398,142 @@ export const ApplicantsTable = memo(({
     useVirtualizer(filteredStudents.length, DESKTOP_ROW_HEIGHT, desktopContainerRef)
 
   return (
-    <ThemedCard 
-      className="rounded-[32px] md:rounded-[48px] shadow-2xl shadow-slate-200/50 dark:shadow-blue-500/10 overflow-hidden transition-colors duration-500 border"
-      style={{    
-        backgroundColor: isDarkMode ? themeColors.dark.surface : '#ffffff',
-        borderColor: isDarkMode ? 'rgba(30, 41, 59, 0.5)' : '#f1f5f9'
-      }}
-    >
-      {/* MOBILE CARD VIEW */}
-      <div ref={mobileContainerRef} className="md:hidden p-4 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
-        <div className="flex items-center justify-between px-2 pb-2">
-          <button onClick={toggleSelectAll} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
-            {selectedIds.length === filteredStudents.length && filteredStudents.length > 0 
-              ? <CheckSquare className="text-blue-600" size={16} /> 
-              : <Square className={isDarkMode ? "text-slate-500" : "text-slate-400"} size={16} />
-            }
-            <span>Select All</span>
-          </button>
-          <span className="text-[10px] font-bold text-slate-400">{filteredStudents.length} Records</span>
+    <>
+      <style jsx global>{`
+        @keyframes slideOutRight {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(40px);
+          }
+        }
+        
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(40px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+      `}</style>
+      
+      <ThemedCard 
+        className="rounded-[32px] md:rounded-[48px] shadow-2xl shadow-slate-200/50 dark:shadow-blue-500/10 overflow-hidden transition-colors duration-500 border"
+        style={{    
+          backgroundColor: isDarkMode ? themeColors.dark.surface : '#ffffff',
+          borderColor: isDarkMode ? 'rgba(30, 41, 59, 0.5)' : '#f1f5f9'
+        }}
+      >
+        {/* MOBILE CARD VIEW */}
+        <div ref={mobileContainerRef} className="md:hidden p-4 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+          <div className="flex items-center justify-between px-2 pb-2">
+            <button onClick={toggleSelectAll} className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-500">
+              {selectedIds.length === filteredStudents.length && filteredStudents.length > 0 
+                ? <CheckSquare className="text-blue-600" size={16} /> 
+                : <Square className={isDarkMode ? "text-slate-500" : "text-slate-400"} size={16} />
+              }
+              <span>Select All</span>
+            </button>
+            <span className="text-[10px] font-bold text-slate-400">{filteredStudents.length} Records</span>
+          </div>
+
+          {filteredStudents.length === 0 ? (
+            <div className="py-20 text-center text-slate-400 italic">No applicants match this criteria.</div>
+          ) : (
+            <>
+              <div style={{ height: mobilePT }} />
+              {mobileItems.map((index) => {
+                const student = filteredStudents[index]
+            return (
+              <MobileApplicantRow 
+                key={student.id}
+                student={student}
+                isSelected={selectedIds.includes(student.id)}
+                isHidden={hiddenRows.has(student.id)}
+                isExiting={exitingRows[student.id]}
+                isAnimatingIn={animatingIds.has(student.id)}
+                isStrandFull={strandStats?.[student.strand] || false}
+                isDarkMode={isDarkMode}
+                toggleSelect={toggleSelect}
+                setOpenStudentDialog={setOpenStudentDialog}
+                handleExit={handleExit}
+                handleStatusChange={handleStatusChange}
+                setActiveDeclineStudent={setActiveDeclineStudent}
+                setDeclineModalOpen={setDeclineModalOpen}
+                setActiveDeleteStudent={setActiveDeleteStudent}
+                setDeleteModalOpen={setDeleteModalOpen}
+              />
+            )
+              })}
+              <div style={{ height: mobilePB }} />
+            </>
+          )}
         </div>
 
-        {filteredStudents.length === 0 ? (
-          <div className="py-20 text-center text-slate-400 italic">No applicants match this criteria.</div>
-        ) : (
-          <>
-            <div style={{ height: mobilePT }} />
-            {mobileItems.map((index) => {
-              const student = filteredStudents[index]
-          return (
-            <MobileApplicantRow 
-              key={student.id}
-              student={student}
-              isSelected={selectedIds.includes(student.id)}
-              isHidden={hiddenRows.has(student.id)}
-              isExiting={exitingRows[student.id]}
-              isAnimatingIn={animatingIds.has(student.id)}
-              isStrandFull={strandStats?.[student.strand] || false}
-              isDarkMode={isDarkMode}
-              toggleSelect={toggleSelect}
-              setOpenStudentDialog={setOpenStudentDialog}
-              handleExit={handleExit}
-              handleStatusChange={handleStatusChange}
-              setActiveDeclineStudent={setActiveDeclineStudent}
-              setDeclineModalOpen={setDeclineModalOpen}
-              setActiveDeleteStudent={setActiveDeleteStudent}
-              setDeleteModalOpen={setDeleteModalOpen}
-            />
-          )
-            })}
-            <div style={{ height: mobilePB }} />
-          </>
-        )}
-      </div>
-
-      {/* DESKTOP TABLE VIEW */}
-      <div ref={desktopContainerRef} className="hidden md:block max-h-[70vh] overflow-y-auto custom-scrollbar relative">
-        <Table className="min-w-full table-fixed">
-          <TableHeader className={`sticky top-0 z-20 ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-sm`}>
-            <TableRow className="border-none hover:bg-transparent">
-              <TableHead className="w-12 min-w-[48px] max-w-[48px] pl-4 md:pl-8" style={{ color: 'grey' }}>
-                <button onClick={toggleSelectAll}>
-                  {selectedIds.length === filteredStudents.length && filteredStudents.length > 0 
-                    ? <CheckSquare className="text-blue-600" size={18} /> 
-                    : <Square className={isDarkMode ? "text-slate-500" : "text-slate-400"} size={18} />
-                  }
-                </button>
-              </TableHead>
-              <TableHead className={`w-[280px] min-w-[280px] px-3 md:px-6 py-6 font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} style={{ color: 'grey' }}>Applicant Identity</TableHead>
-              <TableHead className={`w-[100px] min-w-[100px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>Gender</TableHead>
-              <TableHead className={`w-[120px] min-w-[120px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>Strand</TableHead>
-              <TableHead className={`w-[140px] min-w-[140px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>Section</TableHead>
-              <TableHead className={`w-[80px] min-w-[80px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>GWA</TableHead>
-              <TableHead className={`w-[280px] min-w-[280px] text-right px-4 md:px-8 font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} style={{ color: 'grey' }}>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredStudents.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="py-32 text-center text-slate-400 italic">No applicants match this criteria.</TableCell></TableRow>
-            ) : (
-              <>
-                {desktopPT > 0 && <tr style={{ height: desktopPT }} />}
-                {desktopItems.map((index) => {
-                  const student = filteredStudents[index]
-              return (
-                <DesktopApplicantRow 
-                  key={student.id}
-                  student={student}
-                  isSelected={selectedIds.includes(student.id)}
-                  isHidden={hiddenRows.has(student.id)}
-                  isExiting={exitingRows[student.id]}
-                  isAnimatingIn={animatingIds.has(student.id)}
-                  isStrandFull={strandStats?.[student.strand] || false}
-                  isDarkMode={isDarkMode}
-                  toggleSelect={toggleSelect}
-                  setOpenStudentDialog={setOpenStudentDialog}
-                  handleExit={handleExit}
-                  handleStatusChange={handleStatusChange}
-                  setActiveDeclineStudent={setActiveDeclineStudent}
-                  setDeclineModalOpen={setDeclineModalOpen}
-                  setActiveDeleteStudent={setActiveDeleteStudent}
-                  setDeleteModalOpen={setDeleteModalOpen}
-                />
-              )
-                })}
-                {desktopPB > 0 && <tr style={{ height: desktopPB }} />}
-              </>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </ThemedCard>
+        {/* DESKTOP TABLE VIEW */}
+        <div ref={desktopContainerRef} className="hidden md:block max-h-[70vh] overflow-y-auto custom-scrollbar relative">
+          <Table className="min-w-full table-fixed">
+            <TableHeader className={`sticky top-0 z-20 ${isDarkMode ? 'bg-slate-900' : 'bg-white'} shadow-sm`}>
+              <TableRow className="border-none hover:bg-transparent">
+                <TableHead className="w-12 min-w-[48px] max-w-[48px] pl-4 md:pl-8" style={{ color: 'grey' }}>
+                  <button onClick={toggleSelectAll}>
+                    {selectedIds.length === filteredStudents.length && filteredStudents.length > 0 
+                      ? <CheckSquare className="text-blue-600" size={18} /> 
+                      : <Square className={isDarkMode ? "text-slate-500" : "text-slate-400"} size={18} />
+                    }
+                  </button>
+                </TableHead>
+                <TableHead className={`w-[280px] min-w-[280px] px-3 md:px-6 py-6 font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} style={{ color: 'grey' }}>Applicant Identity</TableHead>
+                <TableHead className={`w-[100px] min-w-[100px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>Gender</TableHead>
+                <TableHead className={`w-[120px] min-w-[120px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>Strand</TableHead>
+                <TableHead className={`w-[140px] min-w-[140px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>Section</TableHead>
+                <TableHead className={`w-[80px] min-w-[80px] font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} text-center`} style={{ color: 'grey' }}>GWA</TableHead>
+                <TableHead className={`w-[280px] min-w-[280px] text-right px-4 md:px-8 font-black uppercase text-[10px] tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} style={{ color: 'grey' }}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredStudents.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="py-32 text-center text-slate-400 italic">No applicants match this criteria.</TableCell></TableRow>
+              ) : (
+                <>
+                  {desktopPT > 0 && <tr style={{ height: desktopPT }} />}
+                  {desktopItems.map((index) => {
+                    const student = filteredStudents[index]
+                return (
+                  <DesktopApplicantRow 
+                    key={student.id}
+                    student={student}
+                    isSelected={selectedIds.includes(student.id)}
+                    isHidden={hiddenRows.has(student.id)}
+                    isExiting={exitingRows[student.id]}
+                    isAnimatingIn={animatingIds.has(student.id)}
+                    isStrandFull={strandStats?.[student.strand] || false}
+                    isDarkMode={isDarkMode}
+                    toggleSelect={toggleSelect}
+                    setOpenStudentDialog={setOpenStudentDialog}
+                    handleExit={handleExit}
+                    handleStatusChange={handleStatusChange}
+                    setActiveDeclineStudent={setActiveDeclineStudent}
+                    setDeclineModalOpen={setDeclineModalOpen}
+                    setActiveDeleteStudent={setActiveDeleteStudent}
+                    setDeleteModalOpen={setDeleteModalOpen}
+                  />
+                )
+                  })}
+                  {desktopPB > 0 && <tr style={{ height: desktopPB }} />}
+                </>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </ThemedCard>
+    </>
   )
 })
 ApplicantsTable.displayName = "ApplicantsTable"
